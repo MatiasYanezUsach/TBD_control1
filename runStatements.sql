@@ -1,4 +1,4 @@
---- 1) lista de clientes que gasta m·s por edificio
+--- 1) lista de clientes que gasta m√°s por edificio
 --Vista que hace un group by por cada combinacion de cliente y edificio.
 --Se selecciona el id de cliente, el monto pagado por edificio, y el edificio correspondientee.
 --Recordar que un cliente puede tener contrato con varios edificios.
@@ -36,6 +36,34 @@ FROM (
 GROUP BY agrupacion.id_modelo, agrupacion.id
 ORDER BY suma ASC, agrupacion.id;
 
+--- 3) empleados con mayor y menor sueldo por edificio
+CREATE OR REPLACE VIEW mayor_sueldo AS
+    SELECT max(s.monto) as maximo
+    FROM public.sueldo as s;
+    
+CREATE OR REPLACE VIEW menor_sueldo AS 
+    SELECT min(s.monto) as minimo
+    FROM public.sueldo as s;
+
+CREATE OR REPLACE VIEW id_max_sueldo AS
+    SELECT s.id as id_max
+    FROM mayor_sueldo as ms, public.sueldo as s
+    where ms.maximo = s.monto;
+    
+CREATE OR REPLACE VIEW id_min_sueldo AS
+    SELECT s.id as id_min
+    FROM menor_sueldo as ms, public.sueldo as s
+    where ms.minimo = s.monto;    
+
+CREATE OR REPLACE VIEW empleados_con_mayor_sueldo AS
+    SELECT e.nombre, e.id_edificio_estacionamiento, e.id_sueldo
+    FROM public.empleado as e, id_max_sueldo as ims
+    WHERE e.id_sueldo = ims.id_max;
+
+CREATE OR REPLACE VIEW empleados_con_menor_sueldo AS
+    SELECT e.nombre, e.id_edificio_estacionamiento, e.id_sueldo
+    FROM public.empleado as e, id_min_sueldo as ims
+    WHERE e.id_sueldo = ims.id_min;
 
 --- 4) lista de comunas con la cantidad de clientes que residen en ellas
 SELECT co.nombre, COUNT(cl.id)
@@ -45,7 +73,7 @@ GROUP BY co.nombre
 ORDER BY COUNT(cl.id) DESC;
 
 
---- 5) lista de edificio con m·s lugares disponibles (sin contrato)
+--- 5) lista de edificio con m√°s lugares disponibles (sin contrato)
 CREATE or REPLACE view lugares_desocupados as
     select l.id as lug
     from lugar as l
@@ -83,8 +111,24 @@ GROUP BY lg.id_edificio_estacionamiento
 ORDER BY cantidad
 ASC;
 
+--- 7) lista de clientes con m√°s autos por edificio
+CREATE OR REPLACE VIEW gasto_cliente AS
+	select c.id_edificio_estacionamiento, cv.id_cliente, sum(p.monto) as mont
+	from cliente_vehiculo as cv, contrato as c, pago as p
+	where c.id_cliente_vehiculo=cv.id and c.id_pago=p.id
+	group by c.id_edificio_estacionamiento,cv.id_cliente;
 
---- 8) lugar m·s usado por edificio
+CREATE OR REPLACE VIEW gasto_maximo AS
+	select gc.id_edificio_estacionamiento, max(mont) as max_monto
+	from gasto_cliente as gc
+	group by gc.id_edificio_estacionamiento;
+	
+select gm.id_edificio_estacionamiento, c.nombre, gm.max_monto
+from gasto_cliente as gc, gasto_maximo as gm, cliente as c
+where gm.max_monto=gc.mont and gm.id_edificio_estacionamiento=gc.id_edificio_estacionamiento and gc.id_cliente=c.id;
+
+
+--- 8) lugar m√°s usado por edificio
 CREATE OR REPLACE VIEW lugar_mas_usado AS
     SELECT lcv.id_lugar AS numero_lugar, COUNT(*) AS cantidad
     FROM public.lugar_cliveh AS lcv
@@ -103,7 +147,7 @@ WHERE ume.maximo=lmu.cantidad AND ume.ide=l.id_edificio_estacionamiento
 	AND lmu.numero_lugar=l.id AND ume.ide=ee.id;
 
 
---- 9) edificio con m·s empleados, indicando el n˙mero de empleados de ese edificio
+--- 9) edificio con m√°s empleados, indicando el n√∫mero de empleados de ese edificio
 CREATE OR REPLACE VIEW mas_empleados AS
 	SELECT e.id_edificio_estacionamiento as id_edificio, count(*) as cantidad
 	FROM public.empleado as e
